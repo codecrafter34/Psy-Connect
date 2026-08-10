@@ -33,6 +33,22 @@ A mental health support platform that uses **AI-powered emotion detection** and 
 
 ---
 
+## ⚡ AWS Rekognition Setup
+
+1. **Create or sign in to an AWS account:** https://console.aws.amazon.com/
+2. **Open IAM:** https://console.aws.amazon.com/iam/
+3. **Do NOT use root access keys.**
+4. **Create a dedicated IAM user** for this application (e.g. `psy-connect-rekognition`).
+5. **Give least-privilege permission:** Create a custom inline policy that ONLY allows `rekognition:DetectFaces`.
+6. **Create an access key** for this user.
+7. **Copy the Access Key ID.**
+8. **Copy the Secret Access Key immediately** (AWS does not allow recovering the secret later).
+9. **Put them in `server/.env`.**
+10. **Set the AWS Region:** `AWS_REGION=ap-south-1`
+11. Start the project using `npm run dev`.
+
+---
+
 ## ⚡ Installation & Setup
 
 ### 1️⃣ Clone the Repository

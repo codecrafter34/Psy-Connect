@@ -3,36 +3,99 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Heart, Brain, TrendingUp, Calendar, Smile, Meh, Frown } from "lucide-react";
+import { AlertTriangle, Loader2, Heart, Brain, TrendingUp, Calendar, Smile, Meh, Frown } from "lucide-react";
 import WebcamCapture from "./WebcamCapture";
-import { emotionAnalysisService, EmotionResult } from "@/services/emotionAnalysis";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+
+export interface EmotionResult {
+  emotion: string;
+  confidence: number;
+  timestamp: Date;
+}
 
 const Dashboard = () => {
   const [recentEmotions, setRecentEmotions] = useState<EmotionResult[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [usage, setUsage] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
+
+  // Removed client-side ML pre-warming
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      setRecentEmotions([]);
+      setSummary(null);
+      return;
+    }
+
+    const fetchDashboardData = async () => {
+      try {
+        const [emotionsRes, summaryRes, usageRes] = await Promise.all([
+          fetch('/api/emotions', { credentials: 'include' }),
+          fetch('/api/emotions/summary', { credentials: 'include' }),
+          fetch('/api/emotions/usage', { credentials: 'include' })
+        ]);
+
+        if (emotionsRes.ok) {
+          const data = await emotionsRes.json();
+          const formattedData = data.map((item: any) => ({
+            ...item,
+            timestamp: new Date(item.timestamp)
+          }));
+          setRecentEmotions(formattedData);
+        }
+
+        if (summaryRes.ok) {
+          setSummary(await summaryRes.json());
+        }
+
+        if (usageRes.ok) {
+          setUsage(await usageRes.json());
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      }
+    };
+    
+    fetchDashboardData();
+  }, [user, authLoading]);
 
   const handleEmotionCapture = async (imageData: string) => {
     if (isAnalyzing) return;
     
     try {
       setIsAnalyzing(true);
-      console.log('Analyzing emotion...');
       
-      const result = await emotionAnalysisService.analyzeEmotion(imageData);
-      
-      setRecentEmotions(prev => {
-        const updated = [result, ...prev.slice(0, 4)]; // Keep last 5 results
-        return updated;
+      const response = await fetch('/api/emotions/analyze', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageData }),
       });
 
-      console.log('Emotion detected:', result);
-    } catch (error) {
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to analyze emotion');
+      }
+
+      const newRecord = { ...result, timestamp: new Date(result.timestamp) };
+      setRecentEmotions(prev => [newRecord, ...prev].slice(0, 5));
+      
+      // Refetch summary and usage
+      Promise.all([
+        fetch('/api/emotions/summary', { credentials: 'include' }).then(res => res.json()).then(setSummary),
+        fetch('/api/emotions/usage', { credentials: 'include' }).then(res => res.json()).then(setUsage)
+      ]).catch(console.error);
+      
+    } catch (error: any) {
       console.error('Failed to analyze emotion:', error);
       toast({
         title: "Analysis Error",
-        description: "Failed to analyze emotion. Please try again.",
+        description: error.message || "Failed to analyze emotion. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -53,7 +116,7 @@ const Dashboard = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Left Column - Webcam & Analysis */}
           <div className="lg:col-span-2 space-y-6">
-            <WebcamCapture onCapture={handleEmotionCapture} />
+            <WebcamCapture onCapture={handleEmotionCapture} isAnalyzing={isAnalyzing} />
             
             {/* Recent Analysis */}
             <Card className="p-6">
@@ -96,23 +159,52 @@ const Dashboard = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Sessions</span>
-                  <Badge variant="outline">3</Badge>
+                  <Badge variant="outline">{summary?.totalSessions ?? 0}</Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Dominant Mood</span>
                   <Badge className="bg-gradient-hero">
-                    {recentEmotions.length > 0 ? recentEmotions[0].emotion : 'N/A'}
+                    {summary?.dominantMood ?? '—'}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Wellness Score</span>
                   <div className="flex items-center gap-2">
-                    <Progress value={78} className="w-16 h-2" />
-                    <span className="text-sm font-medium">78%</span>
+                    {summary?.wellnessScore !== null && summary?.wellnessScore !== undefined ? (
+                      <>
+                        <Progress value={summary.wellnessScore} className="w-16 h-2" />
+                        <span className="text-sm font-medium">{summary.wellnessScore}%</span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-medium">—</span>
+                    )}
                   </div>
                 </div>
               </div>
             </Card>
+
+            {/* API Usage */}
+            {usage && (
+              <Card className="p-6">
+                <h3 className="text-sm font-semibold mb-3">API Usage Limits</h3>
+                <div className="space-y-3 text-xs text-muted-foreground">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span>This Month (Global)</span>
+                      <span>{usage.monthly?.used} / {usage.monthly?.limit}</span>
+                    </div>
+                    <Progress value={(usage.monthly?.used / usage.monthly?.limit) * 100} className="h-1.5" />
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span>Today (You)</span>
+                      <span>{usage.daily?.used} / {usage.daily?.limit}</span>
+                    </div>
+                    <Progress value={(usage.daily?.used / usage.daily?.limit) * 100} className="h-1.5" />
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Mood Trends */}
             <Card className="p-6">
@@ -121,9 +213,18 @@ const Dashboard = () => {
                 <h3 className="text-lg font-semibold">This Week</h3>
               </div>
               <div className="space-y-3">
-                <MoodTrend emotion="Happy" percentage={45} icon={<Smile className="h-4 w-4" />} />
-                <MoodTrend emotion="Calm" percentage={35} icon={<Meh className="h-4 w-4" />} />
-                <MoodTrend emotion="Stressed" percentage={20} icon={<Frown className="h-4 w-4" />} />
+                {summary?.weeklyTrends?.length > 0 ? (
+                  summary.weeklyTrends.map((trend: any) => (
+                    <MoodTrend 
+                      key={trend.emotion} 
+                      emotion={trend.emotion} 
+                      percentage={trend.percentage} 
+                      icon={<Brain className="h-4 w-4" />} 
+                    />
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4">No emotion data yet</div>
+                )}
               </div>
             </Card>
 

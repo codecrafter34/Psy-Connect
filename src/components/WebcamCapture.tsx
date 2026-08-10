@@ -1,22 +1,22 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, CameraOff, Play, Square } from "lucide-react";
+import { Camera, CameraOff, BrainCircuit, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface WebcamCaptureProps {
   onCapture?: (imageData: string) => void;
-  isActive?: boolean;
+  isAnalyzing?: boolean;
   className?: string;
 }
 
-const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCaptureProps) => {
+const WebcamCapture = ({ onCapture, isAnalyzing = false, className = "" }: WebcamCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cooldown, setCooldown] = useState(false);
   const { toast } = useToast();
 
   const startWebcam = async () => {
@@ -36,7 +36,7 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
         
         toast({
           title: "Webcam activated",
-          description: "Your camera is now ready for emotion tracking.",
+          description: "Your camera is now ready. Click 'Analyze Emotion' to capture.",
         });
       }
     } catch (error) {
@@ -54,7 +54,6 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
       setIsStreaming(false);
-      setIsCapturing(false);
       
       if (videoRef.current) {
         videoRef.current.srcObject = null;
@@ -68,7 +67,7 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
   };
 
   const captureFrame = () => {
-    if (!videoRef.current || !canvasRef.current || !isStreaming) return;
+    if (!videoRef.current || !canvasRef.current || !isStreaming || isAnalyzing || cooldown) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -86,46 +85,14 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
     // Convert to base64 JPEG
     const imageData = canvas.toDataURL('image/jpeg', 0.8);
     
+    // UI Cooldown to prevent spam clicks while waiting for the actual state update
+    setCooldown(true);
+    setTimeout(() => setCooldown(false), 3000);
+
     if (onCapture) {
       onCapture(imageData);
     }
   };
-
-  const startCapturing = () => {
-    if (!isStreaming) {
-      toast({
-        title: "Webcam not active",
-        description: "Please start your webcam first.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsCapturing(true);
-    toast({
-      title: "Emotion tracking started",
-      description: "Analyzing your expressions every 3 seconds.",
-    });
-  };
-
-  const stopCapturing = () => {
-    setIsCapturing(false);
-    toast({
-      title: "Emotion tracking stopped",
-      description: "Analysis has been paused.",
-    });
-  };
-
-  // Auto-capture every 3 seconds when capturing is active
-  useEffect(() => {
-    if (!isCapturing) return;
-
-    const interval = setInterval(() => {
-      captureFrame();
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [isCapturing, isStreaming]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -143,8 +110,8 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
           <h3 className="text-lg font-semibold">Emotion Tracking</h3>
           <div className="flex gap-2">
             {isStreaming && (
-              <Badge variant={isCapturing ? "default" : "secondary"}>
-                {isCapturing ? "Analyzing" : "Ready"}
+              <Badge variant={isAnalyzing ? "default" : "secondary"}>
+                {isAnalyzing ? "Analyzing..." : "Ready"}
               </Badge>
             )}
           </div>
@@ -168,12 +135,6 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
               </div>
             </div>
           )}
-          
-          {isCapturing && (
-            <div className="absolute top-2 right-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            </div>
-          )}
         </div>
 
         {/* Hidden canvas for frame capture */}
@@ -187,25 +148,22 @@ const WebcamCapture = ({ onCapture, isActive = false, className = "" }: WebcamCa
               Start Camera
             </Button>
           ) : (
-            <Button onClick={stopWebcam} variant="outline" className="flex-1">
-              <CameraOff className="mr-2 h-4 w-4" />
-              Stop Camera
-            </Button>
-          )}
-          
-          {isStreaming && (
             <>
-              {!isCapturing ? (
-                <Button onClick={startCapturing} className="flex-1">
-                  <Play className="mr-2 h-4 w-4" />
-                  Start Analysis
-                </Button>
-              ) : (
-                <Button onClick={stopCapturing} variant="outline" className="flex-1">
-                  <Square className="mr-2 h-4 w-4" />
-                  Stop Analysis
-                </Button>
-              )}
+              <Button 
+                onClick={captureFrame} 
+                className="flex-1"
+                disabled={isAnalyzing || cooldown}
+              >
+                {isAnalyzing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <BrainCircuit className="mr-2 h-4 w-4" />
+                )}
+                {isAnalyzing ? 'Analyzing...' : 'Analyze Emotion'}
+              </Button>
+              <Button onClick={stopWebcam} variant="outline" size="icon">
+                <CameraOff className="h-4 w-4" />
+              </Button>
             </>
           )}
         </div>

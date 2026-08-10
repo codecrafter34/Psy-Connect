@@ -1,16 +1,30 @@
 import { Button } from "@/components/ui/button";
-import { Brain, Menu, User, Settings } from "lucide-react";
+import { Brain, Menu, User, Settings, LogOut } from "lucide-react";
 import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Navigation = () => {
   const [activeSection, setActiveSection] = useState('home');
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const scrollToSection = (sectionId: string) => {
+    if (location.pathname !== '/') {
+      navigate('/', { state: { scrollTo: sectionId } });
+      return;
+    }
     setActiveSection(sectionId);
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   return (
@@ -32,19 +46,19 @@ const Navigation = () => {
             <button
               onClick={() => scrollToSection('home')}
               className={`text-sm font-medium transition-colors hover:text-primary ${
-                activeSection === 'home' ? 'text-primary' : 'text-muted-foreground'
+                activeSection === 'home' || location.pathname === '/' ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
               Home
             </button>
-            <button
-              onClick={() => scrollToSection('dashboard')}
+            <Link
+              to="/dashboard"
               className={`text-sm font-medium transition-colors hover:text-primary ${
-                activeSection === 'dashboard' ? 'text-primary' : 'text-muted-foreground'
+                location.pathname === '/dashboard' ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
               Dashboard
-            </button>
+            </Link>
             <button className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               Features
             </button>
@@ -55,13 +69,31 @@ const Navigation = () => {
 
           {/* Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="sm">
-              <User className="h-4 w-4 mr-2" />
-              Sign In
-            </Button>
-            <Button size="sm" className="bg-gradient-hero hover:shadow-medium transition-all duration-300">
-              Get Started
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Hello, {user?.name}
+                </span>
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/signin">
+                  <Button variant="ghost" size="sm">
+                    <User className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button size="sm" className="bg-gradient-hero hover:shadow-medium transition-all duration-300">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
