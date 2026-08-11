@@ -28,7 +28,7 @@ Keep your responses conversational, supportive, and relatively short. Do not pro
     const prompt = `${systemPrompt}\n\nConversation History:\n${chatHistory}\n\nUser: ${message}\nAI:`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
     });
 

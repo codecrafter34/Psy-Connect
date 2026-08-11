@@ -24,9 +24,15 @@ const getAWSClient = () => {
 
 const normalizeEmotion = (raw) => {
   const map = {
-    HAPPY: 'Happy', SAD: 'Depression / Sad', ANGRY: 'Angry',
-    CALM: 'Neutral', CONFUSED: 'Stress', UNKNOWN: 'Neutral',
-    DISGUSTED: 'Angry', FEAR: 'Fear & Anxiety', SURPRISED: 'Neutral'
+    HAPPY: 'Happy', 
+    SAD: 'Sad', 
+    ANGRY: 'Angry',
+    CALM: 'Neutral', 
+    CONFUSED: 'Confused', 
+    UNKNOWN: 'Neutral',
+    DISGUSTED: 'Disgusted', 
+    FEAR: 'Fear', 
+    SURPRISED: 'Surprised'
   };
   return map[raw] || 'Neutral';
 };
@@ -61,16 +67,42 @@ const callAWSRekognition = async (imageBase64) => {
   }
 
   emotions.sort((a, b) => (b.Confidence || 0) - (a.Confidence || 0));
-  const primary = emotions[0];
-
-  if (primary.Confidence < 40) {
+  
+  if (emotions[0].Confidence < 40) {
     return { success: false, code: 'LOW_CONFIDENCE', message: 'Emotion unclear. Please ensure good lighting.' };
   }
 
-  const rawEmotion = primary.Type;
-  const normalizedEmotion = normalizeEmotion(rawEmotion);
+  const top3 = emotions.slice(0, 3);
+  
+  let rawEmotion = emotions[0].Type;
+  let normalizedEmotion = normalizeEmotion(rawEmotion);
+  let confidence = emotions[0].Confidence;
 
-  return { success: true, rawEmotion, normalizedEmotion, confidence: primary.Confidence, provider: 'aws-rekognition' };
+  // Custom Heuristic: AWS often misclassifies furrowed-brow "Angry" as "Sad" or "Calm".
+  // If a strong emotion is present in the top 3 with > 5% confidence, we prioritize it!
+  const rareEmotion = top3.find(e => ['ANGRY', 'DISGUSTED', 'FEAR', 'SURPRISED'].includes(e.Type) && e.Confidence > 5);
+  if (rareEmotion) {
+    rawEmotion = rareEmotion.Type;
+    normalizedEmotion = normalizeEmotion(rawEmotion);
+    confidence = rareEmotion.Confidence;
+  }
+
+  // Bonus Logic for Complex Emotions
+  const hasHighFear = top3.find(e => e.Type === 'FEAR' && e.Confidence > 20);
+  const hasHighSad = top3.find(e => e.Type === 'SAD' && e.Confidence > 20);
+  const hasHighConfused = top3.find(e => e.Type === 'CONFUSED' && e.Confidence > 20);
+  const hasHighAngry = top3.find(e => e.Type === 'ANGRY' && e.Confidence > 20);
+
+  if ((hasHighFear && hasHighSad) || (hasHighConfused && hasHighAngry)) {
+    rawEmotion = 'COMPLEX_STRESS';
+    normalizedEmotion = 'Stressed';
+    const relevantEmotions = [hasHighFear, hasHighSad, hasHighConfused, hasHighAngry].filter(Boolean);
+    if (relevantEmotions.length >= 2) {
+       confidence = (relevantEmotions[0].Confidence + relevantEmotions[1].Confidence) / 2;
+    }
+  }
+
+  return { success: true, rawEmotion, normalizedEmotion, confidence, provider: 'aws-rekognition' };
 };
 
 const callFlaskFallback = async (imageBase64) => {
@@ -248,7 +280,8 @@ export const getEmotionSummary = async (req, res) => {
     if (weeklyEmotions.length > 0) {
       const counts = {};
       weeklyEmotions.forEach(e => {
-        counts[e.normalizedEmotion] = (counts[e.normalizedEmotion] || 0) + 1;
+        const emo = e.normalizedEmotion || e.get('emotion') || e.rawEmotion || 'Neutral';
+        counts[emo] = (counts[emo] || 0) + 1;
       });
       for (const [emotion, count] of Object.entries(counts)) {
         weeklyTrends.push({ emotion, percentage: Math.round((count / weeklyEmotions.length) * 100) });

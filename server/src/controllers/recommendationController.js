@@ -9,6 +9,12 @@ export const getRecommendations = async (req, res) => {
     let recentEmotionsStr = "Neutral";
     if (emotions.length > 0) {
       recentEmotionsStr = emotions.map(e => e.normalizedEmotion || e.emotion || e.rawEmotion).join(', ');
+    } else {
+      return res.status(200).json({
+        success: true,
+        noData: true,
+        message: "No emotions tracked yet."
+      });
     }
     
     if (!process.env.GEMINI_API_KEY) {
@@ -27,21 +33,31 @@ export const getRecommendations = async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
-    const prompt = `You are an empathetic AI wellness companion. The user's most recent emotions tracked are: [${recentEmotionsStr}]. 
-Based on these emotions, generate personalized, actionable wellness suggestions to improve or maintain their mood. 
+    const prompt = `You are MindMirror's expert AI Wellness & Lifestyle Coach.
+The user's most recent emotions are: [${recentEmotionsStr}]. 
 
-Return ONLY valid JSON.
-The JSON must have EXACTLY these string keys:
-- "music": Suggest a specific Spotify vibe, genre, or playlist name.
-- "food": Suggest comfort food or a healthy snack.
-- "activity": Suggest a physical activity or hobby.
-- "social": Suggest who to interact with or a social action.
-- "mental": Suggest a quick mindfulness or fun mental task.`;
+Your task is to provide a highly personalized, vibrant, and uplifting 5-step action plan to balance their current mood.
+CRITICAL RULES:
+1. NEVER repeat generic advice (e.g. no "listen to calm music", no "go for a walk").
+2. Be extremely specific and creative. Use exact names of songs, real-world dishes, and unique psychological exercises.
+3. Match the tone of the emotions: if they are Sad, offer gentle comforts. If Angry, offer energy-releasing activities. If Happy, offer ways to sustain the joy.
+
+Provide exactly 5 recommendations in this JSON format:
+{
+  "music": "Exact Song Name by Artist - Brief reason why it helps their current mood",
+  "food": "Specific dish or unique snack recipe - Brief reason why it's good for them right now",
+  "activity": "A highly specific 5-10 minute physical or creative activity (e.g., 'Progressive Muscle Relaxation', 'Shadow Boxing')",
+  "social": "A specific social action (e.g., 'Send a 10-second voice note to your best friend')",
+  "mental": "A unique cognitive exercise (e.g., 'Write 3 things you are grateful for on a sticky note')"
+}
+
+Return ONLY the valid JSON object.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
+        temperature: 0.9,
         responseMimeType: "application/json",
       }
     });

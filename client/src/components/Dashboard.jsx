@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Brain, Heart, TrendingUp, Calendar, Sparkles } from "lucide-react";
+import { Brain, Heart, TrendingUp, Calendar, Sparkles, Smile, Frown, Flame, ShieldAlert, HelpCircle, XCircle, Activity } from "lucide-react";
 import WebcamCapture from "./WebcamCapture";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -213,7 +213,6 @@ const Dashboard = () => {
                       key={trend.emotion} 
                       emotion={trend.emotion} 
                       percentage={trend.percentage} 
-                      icon={<Brain className="h-4 w-4" />} 
                     />
                   ))
                 ) : (
@@ -247,31 +246,50 @@ const Dashboard = () => {
   );
 };
 
-const EmotionEntry = ({ emotion, confidence, time }) => (
-  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-    <div className="flex items-center gap-3">
-      <Brain className="h-5 w-5 text-primary" />
-      <div>
-        <span className="font-medium">{emotion}</span>
-        <p className="text-xs text-muted-foreground">{time}</p>
+const getEmotionStyle = (emotion) => {
+  const norm = emotion?.toLowerCase() || '';
+  if (norm.includes('happy')) return { Icon: Smile, colorClass: 'text-amber-500', bgClass: 'bg-amber-500/10' };
+  if (norm.includes('sad')) return { Icon: Frown, colorClass: 'text-blue-500', bgClass: 'bg-blue-500/10' };
+  if (norm.includes('angry')) return { Icon: Flame, colorClass: 'text-rose-500', bgClass: 'bg-rose-500/10' };
+  if (norm.includes('fear') || norm.includes('anxi')) return { Icon: ShieldAlert, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-500/10' };
+  if (norm.includes('surpris')) return { Icon: Sparkles, colorClass: 'text-yellow-500', bgClass: 'bg-yellow-500/10' };
+  if (norm.includes('confus')) return { Icon: HelpCircle, colorClass: 'text-orange-500', bgClass: 'bg-orange-500/10' };
+  if (norm.includes('disgust')) return { Icon: XCircle, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-500/10' };
+  if (norm.includes('stress')) return { Icon: Activity, colorClass: 'text-red-500', bgClass: 'bg-red-500/10' };
+  return { Icon: Brain, colorClass: 'text-slate-500', bgClass: 'bg-slate-500/10' };
+};
+
+const EmotionEntry = ({ emotion, confidence, time }) => {
+  const { Icon, colorClass, bgClass } = getEmotionStyle(emotion);
+  return (
+    <div className={`flex items-center justify-between p-3 ${bgClass} rounded-lg`}>
+      <div className="flex items-center gap-3">
+        <Icon className={`h-5 w-5 ${colorClass}`} />
+        <div>
+          <span className="font-medium">{emotion}</span>
+          <p className="text-xs text-muted-foreground">{time}</p>
+        </div>
+      </div>
+      <Badge variant="secondary">{Number(confidence).toFixed(1)}%</Badge>
+    </div>
+  );
+};
+
+const MoodTrend = ({ emotion, percentage }) => {
+  const { Icon, colorClass } = getEmotionStyle(emotion);
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Icon className={`h-4 w-4 ${colorClass}`} />
+        <span className="text-sm">{emotion}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Progress value={percentage} className="w-16 h-2" />
+        <span className="text-sm text-muted-foreground">{percentage}%</span>
       </div>
     </div>
-    <Badge variant="secondary">{Number(confidence).toFixed(1)}%</Badge>
-  </div>
-);
-
-const MoodTrend = ({ emotion, percentage, icon }) => (
-  <div className="flex items-center justify-between">
-    <div className="flex items-center gap-2">
-      {icon}
-      <span className="text-sm">{emotion}</span>
-    </div>
-    <div className="flex items-center gap-2">
-      <Progress value={percentage} className="w-16 h-2" />
-      <span className="text-sm text-muted-foreground">{percentage}%</span>
-    </div>
-  </div>
-);
+  );
+};
 
 const RecommendationItem = ({ title, description, type }) => (
   <div className="space-y-1">

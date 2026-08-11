@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
 import { Music, Coffee, PersonStanding, MessageCircleHeart, BrainCircuit, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -18,8 +19,12 @@ const Features = () => {
       try {
         const response = await fetch('/api/recommendations', { credentials: 'include' });
         const result = await response.json();
-        if (result.success && result.data) {
-          setRecommendations(result.data);
+        if (result.success) {
+          if (result.noData) {
+            setRecommendations({ noData: true });
+          } else if (result.data) {
+            setRecommendations(result.data);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch recommendations:", error);
@@ -69,6 +74,19 @@ const Features = () => {
                 </Card>
               ))}
             </>
+          ) : recommendations?.noData ? (
+            <div className="col-span-full text-center py-16">
+              <div className="inline-flex items-center justify-center p-6 bg-white rounded-full shadow-sm mb-6">
+                <BrainCircuit className="h-12 w-12 text-muted-foreground opacity-50" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">No Emotions Tracked Yet</h2>
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                Your AI Action Plan requires at least one emotion log to understand how you're feeling.
+              </p>
+              <Button onClick={() => window.location.href = '/'} className="bg-gradient-hero">
+                Go to Dashboard to Track
+              </Button>
+            </div>
           ) : recommendations ? (
             <>
               <RecommendationCard 
