@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Camera, Brain, TrendingUp, Shield } from "lucide-react";
-import heroImage from "@/assets/hero-mindmirror.jpg";
+import heroImage from "@/assets/hero-psyconnect.jpg";
 
 const Hero = () => {
   return (

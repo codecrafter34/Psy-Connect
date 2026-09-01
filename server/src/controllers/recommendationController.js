@@ -33,7 +33,7 @@ export const getRecommendations = async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
-    const prompt = `You are MindMirror's expert AI Wellness & Lifestyle Coach.
+    const prompt = `You are PsyConnect's expert AI Wellness & Lifestyle Coach.
 The user's most recent emotions are: [${recentEmotionsStr}]. 
 
 Your task is to provide a highly personalized, vibrant, and uplifting 5-step action plan to balance their current mood.

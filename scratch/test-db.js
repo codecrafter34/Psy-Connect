@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: './server/.env' });
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mindmirror')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/psyconnect')
   .then(async () => {
     const db = mongoose.connection.db;
     const collections = await db.collections();

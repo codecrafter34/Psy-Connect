@@ -11,13 +11,13 @@ export const handleChat = async (req, res) => {
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
       return res.json({ 
         success: true, 
-        reply: "Hello! I am MindMirror's AI wellness companion. Please add a valid Gemini API Key to your server's .env file to start our conversation."
+        reply: "Hello! I am PsyConnect's AI wellness companion. Please add a valid Gemini API Key to your server's .env file to start our conversation."
       });
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
-    const systemPrompt = `You are an empathetic, professional AI mental wellness companion for MindMirror. 
+    const systemPrompt = `You are an empathetic, professional AI mental wellness companion for PsyConnect.
 Your goal is to support the user, validate their feelings, and offer brief, actionable wellness advice when appropriate. 
 Keep your responses conversational, supportive, and relatively short. Do not provide medical diagnoses.`;
 
