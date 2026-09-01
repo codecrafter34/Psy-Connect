@@ -10,6 +10,7 @@ import ChatWidget from "@/components/ChatWidget";
 
 const Features = () => {
   const [recommendations, setRecommendations] = useState(null);
+  const [mood, setMood] = useState(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -23,6 +24,7 @@ const Features = () => {
           if (result.noData) {
             setRecommendations({ noData: true });
           } else if (result.data) {
+            setMood(result.mood || null);
             setRecommendations(result.data);
           }
         }
@@ -61,6 +63,12 @@ const Features = () => {
           <p className="text-lg text-muted-foreground">
             Based on your recent emotions, PsyConnect's Gemini AI has crafted this personalized wellness guide just for you.
           </p>
+          {mood && (
+            <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-medium">
+              <Sparkles className="h-4 w-4" />
+              Tuned to your current mood: {mood}
+            </div>
+          )}
         </div>
 
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 lg:grid-cols-3 gap-6">

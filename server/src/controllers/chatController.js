@@ -1,5 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 
+// A real, current Gemini model — "gemini-3.5-flash" does not exist and made
+// every chat call fail. Override with GEMINI_MODEL if needed.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
 export const handleChat = async (req, res) => {
   try {
     const { message, history } = req.body;
@@ -28,7 +32,7 @@ Keep your responses conversational, supportive, and relatively short. Do not pro
     const prompt = `${systemPrompt}\n\nConversation History:\n${chatHistory}\n\nUser: ${message}\nAI:`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: GEMINI_MODEL,
       contents: prompt,
     });
 
