@@ -76,12 +76,8 @@ python app.py
 🧘 Smarter recommendations via AI models
 ## 📸 Screenshots  
 
-### 🏠 Homepage  
-<img width="1897" height="1002" alt="homepage" src="https://github.com/user-attachments/assets/282201b1-41d7-439d-a949-7c14d6cc2aac" />
- 
 
-### 😃 Emotion Detection Feature  
- <img width="1895" height="905" alt="Dashboard" src="https://github.com/user-attachments/assets/6b33e99c-cdf8-407d-8de8-629dc4bf6cbf" />
+ 
 
 
 
