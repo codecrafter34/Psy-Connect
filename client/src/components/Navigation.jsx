@@ -37,7 +37,7 @@ const Navigation = () => {
               <Brain className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-              MindMirror
+              PsyConnect
             </span>
           </div>
 
