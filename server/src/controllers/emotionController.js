@@ -201,22 +201,27 @@ export const analyzeEmotion = async (req, res) => {
     const awsMonthlyLimitReached = currentMonthlyUsage >= LIMITS.MONTHLY;
 
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const userDailyCount = await Emotion.countDocuments({ userId, timestamp: { $gte: startOfDay } });
+    // Only AWS calls count toward the per-user daily cap. Flask is self-hosted
+    // and free, so it is never rate-limited.
+    const userAwsDailyCount = await Emotion.countDocuments({
+      userId,
+      provider: 'aws-rekognition',
+      timestamp: { $gte: startOfDay }
+    });
+    const awsDailyLimitReached = userAwsDailyCount >= LIMITS.DAILY_USER;
 
-    // Per-user daily cap is a fair-use guard, independent of which engine runs.
-    if (userDailyCount >= LIMITS.DAILY_USER) {
-      res.status(429).json({ success: false, code: 'DAILY_LIMIT_REACHED', message: 'Daily emotion analysis limit reached.' });
-      return;
-    }
+    // Neither limit refuses the request any more. When the AWS budget (monthly,
+    // global) OR the per-user daily cap is spent, the analysis is handed to the
+    // free Flask ML model instead of returning an error.
+    const useFlaskOnly = awsMonthlyLimitReached || awsDailyLimitReached;
 
     let result = null;
     let awsSoftFail = null; // a real business answer from AWS (e.g. "no face"), not a crash
 
-    // PRIMARY: AWS Rekognition — skipped entirely once the monthly AWS budget is
-    // spent, so the free tier is never overrun. The request is NOT refused; it
-    // simply falls through to the self-hosted Flask model below.
-    if (awsMonthlyLimitReached) {
-      console.warn('[AWS] Monthly limit reached — routing straight to Flask ML.');
+    // PRIMARY: AWS Rekognition — skipped once a limit is spent so the free tier
+    // is never overrun. The request is NOT refused; it falls through to Flask.
+    if (useFlaskOnly) {
+      console.warn(`[AWS] Skipped (${awsMonthlyLimitReached ? 'monthly' : 'daily'} limit reached) — using Flask ML.`);
     } else {
       try {
         result = await callAWSRekognition(image);
@@ -244,7 +249,10 @@ export const analyzeEmotion = async (req, res) => {
           res.status(400).json({ success: false, code: awsSoftFail.code, message: awsSoftFail.message });
           return;
         }
-        res.status(503).json({ success: false, message: 'Emotion analysis is temporarily unavailable. Please try again in a moment.' });
+        const message = useFlaskOnly
+          ? 'The cloud analysis limit was reached and the backup ML service is not reachable right now. Please try again later.'
+          : 'Emotion analysis is temporarily unavailable. Please try again in a moment.';
+        res.status(503).json({ success: false, code: 'ML_UNAVAILABLE', message });
         return;
       }
     }
