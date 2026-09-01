@@ -10,14 +10,16 @@ CORS(app)
 
 detector = FER(mtcnn=False)
 
+# Kept identical to the AWS Rekognition vocabulary in emotionController.js so the
+# dashboard shows one consistent set of moods no matter which engine answered.
 EMOTION_MAP = {
     'happy': 'Happy',
-    'sad': 'Depression / Sad',
+    'sad': 'Sad',
     'angry': 'Angry',
     'neutral': 'Neutral',
-    'fear': 'Fear & Anxiety',
-    'disgust': 'Angry',
-    'surprise': 'Stress'
+    'fear': 'Fear',
+    'disgust': 'Disgusted',
+    'surprise': 'Surprised'
 }
 
 @app.route('/predict', methods=['POST'])
@@ -67,5 +69,10 @@ def predict_emotion():
         return jsonify({'success': False, 'message': 'Emotion analysis unavailable.', 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("Starting Flask ML Microservice on port 5001...")
-    app.run(host='127.0.0.1', port=5001, debug=True)
+    import os
+    # Bind to 0.0.0.0 and honour the host's PORT so the same file runs locally
+    # (port 5001) and on a cloud host (which injects its own PORT). debug is off
+    # so a stack trace is never exposed in production.
+    port = int(os.environ.get('PORT', 5001))
+    print(f"Starting Flask ML Microservice on port {port}...")
+    app.run(host='0.0.0.0', port=port)

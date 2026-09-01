@@ -8,6 +8,12 @@ const LIMITS = {
   DAILY_USER: parseInt(process.env.AWS_DAILY_ANALYSIS_LIMIT_PER_USER || '20', 10)
 };
 
+// Where the Python (Flask/FER) emotion model lives. Localhost in development;
+// in production set ML_SERVICE_URL to the deployed service, e.g.
+// https://psyconnect-ml.onrender.com — trailing slash is trimmed so the join
+// below never produces a double slash.
+const ML_SERVICE_URL = (process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001').replace(/\/+$/, '');
+
 let rekognitionClient = null;
 const getAWSClient = () => {
   if (!rekognitionClient) {
@@ -73,18 +79,33 @@ const callAWSRekognition = async (imageBase64) => {
   }
 
   const top3 = emotions.slice(0, 3);
-  
+
   let rawEmotion = emotions[0].Type;
   let normalizedEmotion = normalizeEmotion(rawEmotion);
   let confidence = emotions[0].Confidence;
 
-  // Custom Heuristic: AWS often misclassifies furrowed-brow "Angry" as "Sad" or "Calm".
-  // If a strong emotion is present in the top 3 with > 5% confidence, we prioritize it!
-  const rareEmotion = top3.find(e => ['ANGRY', 'DISGUSTED', 'FEAR', 'SURPRISED'].includes(e.Type) && e.Confidence > 5);
-  if (rareEmotion) {
-    rawEmotion = rareEmotion.Type;
+  // AWS Rekognition systematically under-ranks expressive faces: a furrowed-brow
+  // "Angry" frequently reads as "Calm" or "Sad" and is buried below the top
+  // result. Scan the WHOLE reading (not just the top 3) and give the expressive
+  // emotions a lower bar so they are not lost under a bland winner.
+  const EXPRESSIVE = ['ANGRY', 'DISGUSTED', 'FEAR', 'SURPRISED'];
+  const expressive = emotions
+    .filter((e) => EXPRESSIVE.includes(e.Type) && (e.Confidence || 0) > 5)
+    .sort((a, b) => (b.Confidence || 0) - (a.Confidence || 0))[0];
+  if (expressive) {
+    rawEmotion = expressive.Type;
     normalizedEmotion = normalizeEmotion(rawEmotion);
-    confidence = rareEmotion.Confidence;
+    confidence = expressive.Confidence;
+  }
+
+  // Anger is the most under-reported emotion of all, so it gets the lowest bar:
+  // any clear trace of it anywhere in the reading wins. This is what makes an
+  // angry face at the camera actually register as "Angry".
+  const angry = emotions.find((e) => e.Type === 'ANGRY');
+  if (angry && (angry.Confidence || 0) >= 7) {
+    rawEmotion = 'ANGRY';
+    normalizedEmotion = 'Angry';
+    confidence = angry.Confidence;
   }
 
   // Bonus Logic for Complex Emotions
@@ -106,11 +127,22 @@ const callAWSRekognition = async (imageBase64) => {
 };
 
 const callFlaskFallback = async (imageBase64) => {
-  const flaskResponse = await fetch('http://127.0.0.1:5001/predict', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: imageBase64 })
-  });
+  // A cold (asleep) free-tier ML instance can take a while to answer, but we
+  // must not hang the request forever, so cap the wait.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
+
+  let flaskResponse;
+  try {
+    flaskResponse = await fetch(`${ML_SERVICE_URL}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageBase64 }),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   const flaskResult = await flaskResponse.json();
 
@@ -166,47 +198,55 @@ export const analyzeEmotion = async (req, res) => {
 
     const usageDoc = await ApiUsage.findOne({ month: monthKey, provider: 'aws-rekognition', operation: 'DetectFaces' });
     const currentMonthlyUsage = usageDoc?.count || 0;
-
-    if (currentMonthlyUsage >= LIMITS.MONTHLY) {
-      res.status(429).json({ success: false, code: 'MONTHLY_LIMIT_REACHED', message: 'Monthly emotion analysis limit reached.' });
-      return;
-    }
+    const awsMonthlyLimitReached = currentMonthlyUsage >= LIMITS.MONTHLY;
 
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const userDailyCount = await Emotion.countDocuments({ userId, timestamp: { $gte: startOfDay } });
 
+    // Per-user daily cap is a fair-use guard, independent of which engine runs.
     if (userDailyCount >= LIMITS.DAILY_USER) {
       res.status(429).json({ success: false, code: 'DAILY_LIMIT_REACHED', message: 'Daily emotion analysis limit reached.' });
       return;
     }
 
     let result = null;
+    let awsSoftFail = null; // a real business answer from AWS (e.g. "no face"), not a crash
 
-    // PRIMARY: Try AWS Rekognition
-    try {
-      result = await callAWSRekognition(image);
-      if (result.success) {
-        console.log(`[AWS] Emotion: ${result.normalizedEmotion} | Confidence: ${result.confidence.toFixed(2)}%`);
+    // PRIMARY: AWS Rekognition — skipped entirely once the monthly AWS budget is
+    // spent, so the free tier is never overrun. The request is NOT refused; it
+    // simply falls through to the self-hosted Flask model below.
+    if (awsMonthlyLimitReached) {
+      console.warn('[AWS] Monthly limit reached — routing straight to Flask ML.');
+    } else {
+      try {
+        result = await callAWSRekognition(image);
+        if (result.success) {
+          console.log(`[AWS] Emotion: ${result.normalizedEmotion} | Confidence: ${result.confidence.toFixed(2)}%`);
+        } else {
+          awsSoftFail = result; // NO_FACE / LOW_CONFIDENCE — try Flask, but keep this as the fallback message
+          result = null;
+        }
+      } catch (awsError) {
+        console.warn(`[AWS] Failed: ${awsError.message}. Switching to Flask ML fallback...`);
       }
-    } catch (awsError) {
-      console.warn(`[AWS] Failed: ${awsError.message}. Switching to Flask ML fallback...`);
     }
 
-    // FALLBACK: Use Flask ML if AWS failed or returned no result
-    if (!result || !result.success) {
+    // FALLBACK: Flask ML when AWS is over budget, errored, or saw no usable face.
+    if (!result) {
       try {
         result = await callFlaskFallback(image);
         console.log(`[FALLBACK] Flask ML used — Emotion: ${result.normalizedEmotion} | Confidence: ${result.confidence.toFixed(2)}%`);
       } catch (flaskError) {
-        console.error(`[FALLBACK] Flask ML also failed: ${flaskError.message}`);
-        res.status(500).json({ success: false, message: 'Emotion analysis unavailable. Both AWS and Flask ML failed.' });
+        console.error(`[FALLBACK] Flask ML unavailable: ${flaskError.message}`);
+        // If AWS gave a clear business answer (no face / unclear), surface that
+        // rather than a generic failure.
+        if (awsSoftFail) {
+          res.status(400).json({ success: false, code: awsSoftFail.code, message: awsSoftFail.message });
+          return;
+        }
+        res.status(503).json({ success: false, message: 'Emotion analysis is temporarily unavailable. Please try again in a moment.' });
         return;
       }
-    }
-
-    if (!result.success) {
-      res.status(400).json({ success: false, code: result.code, message: result.message });
-      return;
     }
 
     const newRecord = await Emotion.create({
