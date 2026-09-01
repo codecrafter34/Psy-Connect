@@ -10,12 +10,12 @@ const About = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
         <div className="container mx-auto max-w-4xl text-center">
-          <Badge className="mb-6">About MindMirror</Badge>
+          <Badge className="mb-6">About PsyConnect</Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
             Your Personal AI Companion for Mental Wellness
           </h1>
           <p className="text-xl text-muted-foreground leading-relaxed">
-            MindMirror is not just an emotion tracker. It's a highly intelligent, empathetic AI companion designed to understand how you feel and help you take the next best step for your mental health.
+            PsyConnect is not just an emotion tracker. It's a highly intelligent, empathetic AI companion designed to understand how you feel and help you take the next best step for your mental health.
           </p>
         </div>
       </section>
@@ -68,7 +68,7 @@ const About = () => {
                 </div>
                 <h2 className="text-3xl font-bold">Making emotional intelligence accessible.</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  In a fast-paced world, it's easy to lose touch with how we're really feeling. We built MindMirror to bridge the gap between technology and human emotion. By combining cutting-edge AI with empathetic design, we aim to help you understand yourself better and improve your emotional resilience every single day.
+                  In a fast-paced world, it's easy to lose touch with how we're really feeling. We built PsyConnect to bridge the gap between technology and human emotion. By combining cutting-edge AI with empathetic design, we aim to help you understand yourself better and improve your emotional resilience every single day.
                 </p>
               </div>
               <div className="flex-1">

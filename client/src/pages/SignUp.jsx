@@ -49,7 +49,7 @@ const SignUp = () => {
         login(data);
         toast({
           title: "Account created!",
-          description: "Welcome to MindMirror.",
+          description: "Welcome to PsyConnect.",
         });
         navigate('/dashboard');
       } else {

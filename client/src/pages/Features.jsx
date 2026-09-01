@@ -59,7 +59,7 @@ const Features = () => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Your AI Action Plan</h1>
           <p className="text-lg text-muted-foreground">
-            Based on your recent emotions, MindMirror's Gemini AI has crafted this personalized wellness guide just for you.
+            Based on your recent emotions, PsyConnect's Gemini AI has crafted this personalized wellness guide just for you.
           </p>
         </div>
 

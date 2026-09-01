@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Hi there! I am your MindMirror companion. How are you feeling today?' }
+    { role: 'ai', text: 'Hi there! I am your PsyConnect companion. How are you feeling today?' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

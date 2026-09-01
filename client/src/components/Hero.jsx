@@ -18,7 +18,7 @@ const Hero = () => {
               <div className="space-y-4">
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
                   <span className="bg-gradient-hero bg-clip-text text-transparent">
-                    MindMirror
+                    PsyConnect
                   </span>
                   <br />
                   <span className="text-foreground">
@@ -53,7 +53,7 @@ const Hero = () => {
               <div className="relative rounded-3xl overflow-hidden shadow-strong">
                 <img 
                   src={heroImage} 
-                  alt="MindMirror - Mental wellness through emotion tracking"
+                  alt="PsyConnect - Mental wellness through emotion tracking"
                   className="w-full h-auto object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-wellness opacity-20" />
