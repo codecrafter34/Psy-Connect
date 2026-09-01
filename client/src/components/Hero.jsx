@@ -1,9 +1,11 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Camera, Brain, TrendingUp, Shield } from "lucide-react";
 import heroImage from "@/assets/hero-psyconnect.jpg";
 
 const Hero = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative min-h-screen flex flex-col">
       {/* Hero Background */}
@@ -31,16 +33,18 @@ const Hero = () => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  size="lg" 
+                <Button
+                  size="lg"
+                  onClick={() => navigate("/dashboard")}
                   className="bg-gradient-hero hover:shadow-medium transition-all duration-300 transform hover:scale-[1.02]"
                 >
                   <Camera className="mr-2 h-5 w-5" />
                   Start Tracking
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
+                  onClick={() => navigate("/features")}
                   className="border-primary/20 hover:bg-gradient-calm transition-all duration-300"
                 >
                   Learn More

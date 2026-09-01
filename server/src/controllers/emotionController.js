@@ -5,6 +5,8 @@ import { ApiUsage } from '../models/ApiUsage.js';
 
 const LIMITS = {
   MONTHLY: parseInt(process.env.AWS_MONTHLY_ANALYSIS_LIMIT || '800', 10),
+  // Per-user AWS calls per day before the analysis is handed to the free Flask
+  // model. Override with AWS_DAILY_ANALYSIS_LIMIT_PER_USER if needed.
   DAILY_USER: parseInt(process.env.AWS_DAILY_ANALYSIS_LIMIT_PER_USER || '20', 10)
 };
 

@@ -22,6 +22,14 @@ EMOTION_MAP = {
     'surprise': 'Surprised'
 }
 
+@app.route('/', methods=['GET'])
+@app.route('/health', methods=['GET'])
+def health():
+    # A cheap GET so the host's health check (and a quick browser visit) can
+    # confirm the service is awake without running the model.
+    return jsonify({'status': 'ok', 'service': 'psyconnect-ml'}), 200
+
+
 @app.route('/predict', methods=['POST'])
 def predict_emotion():
     try:
