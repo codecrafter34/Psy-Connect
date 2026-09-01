@@ -1,4 +1,4 @@
-<img width="1897" height="1002" alt="Screenshot 2025-09-19 234417" src="https://github.com/user-attachments/assets/33b6aab1-d8f5-4d5b-9dbe-6ddd1fcd1d12" />
+
 
 # 🧠 Psy-Connect
 
